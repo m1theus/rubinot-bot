@@ -14,7 +14,7 @@ const createAccountQueue = new Queue(CREATE_ACCOUNT_QUEUE, {
     password: "eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81",
   },
   defaultJobOptions: {
-    attempts: 10,
+    attempts: 30,
     backoff: {
       type: "fixed",
       delay: 3 * 1000,
@@ -61,11 +61,7 @@ createAccountWorker.on("completed", (job, successData) => {
     task?.jobs?.splice(index, 1);
   }
 
-  if (task?.data) {
-    task.data?.push(successData);
-  } else {
-    task["data"] = [successData];
-  }
+  task.data?.push(successData);
 
   if (task.jobs.length === 0) {
     task.status = "COMPLETED";

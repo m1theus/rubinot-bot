@@ -4,7 +4,11 @@ import axios from "axios";
 
 import { wrapper } from "axios-cookiejar-support";
 import { CookieJar } from "tough-cookie";
-import Tesseract from "tesseract.js";
+import { createWorker } from "tesseract.js";
+
+const worker = await createWorker({
+  // logger: m => console.log(m)
+});
 
 const jar = new CookieJar();
 const client = wrapper(axios.create({ jar }));
@@ -88,14 +92,26 @@ const handleCreateAccountBody = (body) => {
 };
 
 const retrieveRegCode = async (path) => {
-  const {
-    jobId,
-    data: { text },
-  } = await Tesseract.recognize(path);
+  await worker.loadLanguage("eng");
+  await worker.initialize("eng");
+  await worker.setParameters({
+    tessedit_char_whitelist: "123456789HPXTWQM",
+  });
 
-  const reg_code = text.trim().replace("\n", "");
+  try {
+    const {
+      jobId,
+      data: { text },
+    } = await worker.recognize(path, {
+      rectangle: { top: 0, left: 0, width: 80, height: 30 },
+    });
 
-  return reg_code;
+    const reg_code = text.trim().replace("\n", "");
+
+    return reg_code;
+  } catch (error) {
+    return "";
+  }
 };
 
 const CREATE_ACCOUNT_QUEUE = "create_account";
