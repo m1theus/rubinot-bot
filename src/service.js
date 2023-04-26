@@ -17,9 +17,9 @@ const createAccountQueue = new Queue(CREATE_ACCOUNT_QUEUE, {
     attempts: 10,
     backoff: {
       type: "fixed",
-      delay: 300,
+      delay: 3 * 1000,
     },
-    delay: 300,
+    delay: 3 * 1000,
     removeOnComplete: {
       age: 3600, // keep up to 1 hour
       count: 1000, // keep up to 1000 jobs
