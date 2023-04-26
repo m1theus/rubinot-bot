@@ -1,83 +1,147 @@
-import fs from "node:fs";
+import { randomUUID } from "node:crypto";
+import { Queue, Worker } from "bullmq";
 import numberToWords from "number-to-words";
-import {
-  generateSession,
-  login,
-  retrieveRegCode,
-  downloadImage,
-  createAccount,
-  recoveryKey,
-  handleCreateAccountBody,
-} from "./util.js";
 
-const CreateAccountService = {
-  createAccountAsync: async ({
-    account_pattern,
-    email_pattern,
-    password,
-    character_pattern,
-    quantity,
-  }) => {
-    const result = [];
-    const data = new Array(parseInt(quantity) || 1)
-      .fill(account_pattern)
-      .map((accountName, index) => {
-        const account = `${accountName}${index + 1}`;
-        const character = `${character_pattern}${numberToWords.toWords(
-          index + 1
-        )}`
-          .split("-")
-          .join(" ")
-          .replace(" ", "")
-          .trim();
+import { performCreateAccountTask } from "./worker.js";
+import { CREATE_ACCOUNT_QUEUE } from "./util.js";
 
-        const [em1, em2] = email_pattern.split("@");
-        const email = `${em1}+${account}@${em2}`.trim();
+const IN_MEMORY_DB = new Map();
 
-        return {
+const createAccountQueue = new Queue(CREATE_ACCOUNT_QUEUE, {
+  connection: {
+    host: "127.0.0.1",
+    port: "6379",
+    password: "eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81",
+  },
+  defaultJobOptions: {
+    attempts: 10,
+    backoff: {
+      type: "fixed",
+      delay: 300,
+    },
+    delay: 300,
+    removeOnComplete: {
+      age: 3600, // keep up to 1 hour
+      count: 1000, // keep up to 1000 jobs
+    },
+    removeOnFail: {
+      age: 10 * 1000, // keep up to 24 hours
+    },
+  },
+});
+
+const createAccountWorker = new Worker(
+  CREATE_ACCOUNT_QUEUE,
+  async (job) => performCreateAccountTask(job),
+  {
+    connection: {
+      host: "127.0.0.1",
+      port: "6379",
+      password: "eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81",
+    },
+    removeOnComplete: {
+      age: 3600, // keep up to 1 hour
+      count: 1000, // keep up to 1000 jobs
+    },
+    removeOnFail: {
+      age: 10 * 1000, // keep up to 24 hours
+    },
+    concurrency: 50,
+    runRetryDelay: 200,
+    maxStalledCount: 5,
+  }
+);
+
+createAccountWorker.on("completed", (job, successData) => {
+  console.log("creating account completed...jobId:", job.name);
+  const task = IN_MEMORY_DB.get(job.name);
+
+  const index = task?.jobs?.indexOf(successData.id);
+  if (index > -1) {
+    task?.jobs?.splice(index, 1);
+  }
+
+  if (task?.data) {
+    task.data?.push(successData);
+  } else {
+    task["data"] = [successData];
+  }
+
+  if (task.jobs.length === 0) {
+    task.status = "COMPLETED";
+  }
+
+  IN_MEMORY_DB.delete(job.id);
+  IN_MEMORY_DB.set(job.id, task);
+});
+
+async function createAccountAsync({
+  account_pattern,
+  email_pattern,
+  password,
+  character_pattern,
+  quantity,
+}) {
+  const taskId = randomUUID();
+
+  const data = new Array(parseInt(quantity) || 1)
+    .fill(account_pattern)
+    .map((accountName, index) => {
+      const account = `${accountName}${index + 1}`;
+      const character = `${character_pattern}${numberToWords.toWords(
+        index + 1
+      )}`
+        .split("-")
+        .join(" ")
+        .replace(" ", "")
+        .trim();
+
+      const [em1, em2] = email_pattern.split("@");
+      const email = `${em1}+${account}@${em2}`.trim();
+
+      return {
+        name: taskId,
+        data: {
           account,
           email,
           password,
           character,
-        };
-      });
-
-    for (let index = 0; index < data.length; index++) {
-      const { account, email, password, character } = data[index];
-
-      try {
-        await generateSession();
-        await downloadImage(`${account}.png`);
-        const reg_code = await retrieveRegCode(`${account}.png`);
-        fs.rmSync(`${account}.png`);
-        console.log(`[${account}] - reg_code: ${reg_code}`);
-
-        const { data } = await createAccount(reg_code, {
-          account,
-          email,
           password,
-          password2: password,
-          name: character,
-        });
-        const { error, errData } = handleCreateAccountBody(data);
+        },
+      };
+    });
 
-        if (!error) {
-          result.push({
-            account,
-            email,
-            password,
-            character,
-          });
-        }
-      } catch (error) {
-        console.log(`Error creating account...${account}`, error);
-      }
-    }
+  const jobs = await createAccountQueue.addBulk(data, {
+    removeOnComplete: {
+      age: 3600, // keep up to 1 hour
+      count: 1000, // keep up to 1000 jobs
+    },
+    removeOnFail: {
+      age: 24 * 3600, // keep up to 24 hours
+    },
+    concurrency: 50,
+    attempts: 5,
+    backoff: {
+      type: "fixed",
+      delay: 200,
+    },
+  });
 
-    return {
-      data: result,
-    };
-  },
-};
+  const tasksData = {
+    taskId,
+    jobs: jobs?.map((x) => x.id),
+    data: [],
+    status: "ACTIVE",
+  };
 
-export { CreateAccountService };
+  IN_MEMORY_DB.set(taskId, tasksData);
+
+  return tasksData;
+}
+
+function getTask(taskId) {
+  const data = IN_MEMORY_DB.get(taskId);
+  return data || { data: [] };
+}
+
+export { createAccountAsync, getTask };

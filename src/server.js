@@ -1,7 +1,11 @@
 import Fastify from "fastify";
-import { CreateAccountService } from "./service.js";
+import { createAccountAsync, getTask } from "./service.js";
 
-const server = Fastify({});
+const server = Fastify({
+  logger: {
+    level: "error",
+  },
+});
 
 server.get("/create_account", async (request, reply) => {
   const {
@@ -46,13 +50,18 @@ server.get("/create_account", async (request, reply) => {
     return error;
   }
 
-  return CreateAccountService.createAccountAsync({
+  return createAccountAsync({
     account_pattern,
     email_pattern,
     password,
     character_pattern,
     quantity,
   });
+});
+
+server.get("/get_account/:id", async (request, response) => {
+  const { id } = request.params;
+  return getTask(id);
 });
 
 const start = async () => {
@@ -69,3 +78,8 @@ const start = async () => {
 };
 
 start();
+
+process.on("SIGTERM", () => {
+  console.log("[server] shutdown...", new Date().toISOString());
+  server.close(() => process.exit(0));
+});

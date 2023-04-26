@@ -31,7 +31,7 @@ async function downloadImage(path) {
   });
 }
 
-const createAccount = async (reg_code, { account, email, password, name }) =>
+const createAccount = async ({ reg_code, account, email, password, name }) =>
   client.post(
     "https://rubinot.com/?account/create",
     new URLSearchParams({
@@ -98,12 +98,14 @@ const retrieveRegCode = async (path) => {
   return reg_code;
 };
 
+const CREATE_ACCOUNT_QUEUE = "create_account";
+
 export {
   generateSession,
-  login,
   retrieveRegCode,
   downloadImage,
   createAccount,
   recoveryKey,
   handleCreateAccountBody,
+  CREATE_ACCOUNT_QUEUE,
 };
