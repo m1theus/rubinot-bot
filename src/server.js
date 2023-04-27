@@ -1,11 +1,7 @@
-import Fastify from "fastify";
+import express from "express";
 import { createAccountAsync, getTask } from "./service.js";
 
-const server = Fastify({
-  logger: {
-    level: "error",
-  },
-});
+const server = express();
 
 server.get("/create_account", async (request, reply) => {
   const { account, email, password, character_pattern } = request.query;
@@ -51,11 +47,9 @@ server.get("/get_account/:id", async (request, response) => {
 
 const start = async () => {
   try {
-    await server.listen({ port: 5000 });
-
-    const address = server.server.address();
-    const port = typeof address === "string" ? address : address?.port;
-    console.log(`server started at: http://${address?.address}:${port}`);
+    server.listen(5000, () => {
+      console.log("Web application is listening on port 5000");
+    });
   } catch (err) {
     server.log.error(err);
     process.exit(1);
