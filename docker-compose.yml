@@ -17,6 +17,8 @@ services:
       dockerfile: Dockerfile
     image: rubinot
     container_name: rubinot
+    ports:
+      - "3000:3000"
     depends_on:
       - cache
     restart: unless-stopped
