@@ -7,6 +7,12 @@ server.get("/", function (req, res) {
   res.send("hello world!");
 });
 
+server.get("/hello", function (req, res) {
+  return res.status(200).json({
+    hello: "world",
+  });
+});
+
 server.get("/create_account", async (request, response) => {
   const { account, email, password, character_pattern } = request.query;
 
@@ -51,7 +57,8 @@ server.get("/create_account", async (request, response) => {
 
 server.get("/get_account/:id", async (request, response) => {
   const { id } = request.params;
-  return getTask(id);
+  const res = await getTask(id);
+  return response.status(200).json(res);
 });
 
 const start = async () => {
