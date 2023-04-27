@@ -51,7 +51,7 @@ server.get("/get_account/:id", async (request, response) => {
 
 const start = async () => {
   try {
-    await server.listen({ port: 3000 });
+    await server.listen({ port: 5000 });
 
     const address = server.server.address();
     const port = typeof address === "string" ? address : address?.port;

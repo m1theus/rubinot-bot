@@ -1,4 +1,4 @@
-version: "3.8"
+version: "3.9"
 services:
   cache:
     container_name: cache
@@ -11,63 +11,46 @@ services:
       - cache:/data
     networks:
       - app-network
-  rubinot:
+  web1:
     build:
       context: .
       dockerfile: Dockerfile
     image: rubinot
     container_name: rubinot
     ports:
-      - "3000:3000"
+      - "81:5000"
     depends_on:
       - cache
     restart: unless-stopped
     networks:
       - app-network
-  webserver:
-    build: ./nginx
-    container_name: webserver
-    restart: unless-stopped
+  web2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rubinot
+    container_name: rubinot
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - web-root:/var/www/html
-      # - ./nginx-conf:/etc/nginx/conf.d
-      # - certbot-etc:/etc/letsencrypt
-      # - certbot-var:/var/lib/letsencrypt
-      # - dhparam:/etc/ssl/certs
+      - "82:5000"
     depends_on:
-      - rubinot
+      - cache
+    restart: unless-stopped
     networks:
       - app-network
-  # certbot:
-  #   image: certbot/certbot
-  #   container_name: certbot
-  #   volumes:
-  #     - certbot-etc:/etc/letsencrypt
-  #     - certbot-var:/var/lib/letsencrypt
-  #     - web-root:/var/www/html
-  #   depends_on:
-  #     - webserver
-  #   command: certonly --webroot --webroot-path=/var/www/html --email mail@mmartins.dev --agree-tos --no-eff-email --staging -d 0.0.0.0:3000
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - web1
+      - web2
+    networks:
+      - app-network
+
 volumes:
   cache:
     driver: local
-  # certbot-etc:
-  # certbot-var:
-  # web-root:
-  #   driver: local
-  # driver_opts:
-  # type: none
-  # device: /Users/matheus/workspace/rubinot/views/
-  # o: bind
-  # dhparam:
-  #   driver: local
-  #   driver_opts:
-  #     type: none
-  #     device: /Users/matheus/workspace/rubinot/dhparam/
-  #     o: bind
+
 networks:
   app-network:
     driver: bridge
