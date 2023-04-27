@@ -1,38 +1,19 @@
 version: "3.9"
 services:
   cache:
-    container_name: cache
-    image: redis:6.2-alpine
-    restart: always
+    image: "redis:alpine"
     ports:
       - "6379:6379"
-    command: redis-server --save 20 1 --loglevel warning
-    volumes:
-      - cache:/data
-    networks:
-      - app-network
   web1:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    restart: on-failure
+    build: .
     ports:
       - "81:5000"
-    depends_on:
-      - cache
-    restart: unless-stopped
-    networks:
-      - app-network
   web2:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    restart: on-failure
+    build: .
     ports:
       - "82:5000"
-    depends_on:
-      - cache
-    restart: unless-stopped
-    networks:
-      - app-network
   nginx:
     build: ./nginx
     ports:
@@ -40,13 +21,55 @@ services:
     depends_on:
       - web1
       - web2
-    networks:
-      - app-network
+# version: "3.9"
+# services:
+#   cache:
+#     container_name: cache
+#     image: redis:6.2-alpine
+#     restart: always
+#     ports:
+#       - "6379:6379"
+#     command: redis-server --save 20 1 --loglevel warning
+#     volumes:
+#       - cache:/data
+#     networks:
+#       - app-network
+#   web1:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     ports:
+#       - "81:5000"
+#     depends_on:
+#       - cache
+#     restart: unless-stopped
+#     networks:
+#       - app-network
+#   web2:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     ports:
+#       - "82:5000"
+#     depends_on:
+#       - cache
+#     restart: unless-stopped
+#     networks:
+#       - app-network
+#   nginx:
+#     build: ./nginx
+#     ports:
+#       - "80:80"
+#     depends_on:
+#       - web1
+#       - web2
+#     networks:
+#       - app-network
 
-volumes:
-  cache:
-    driver: local
+# volumes:
+#   cache:
+#     driver: local
 
-networks:
-  app-network:
-    driver: bridge
+# networks:
+#   app-network:
+#     driver: bridge
