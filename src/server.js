@@ -40,7 +40,6 @@ server.get("/create_account", async (request, response) => {
   }
 
   if (error?.fields?.length) {
-    reply.status(400);
     return response.status(400).json(error);
   }
 
