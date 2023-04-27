@@ -1,3 +1,4 @@
+import IORedis from "ioredis";
 import { randomUUID } from "node:crypto";
 import { Queue, Worker } from "bullmq";
 
@@ -5,13 +6,10 @@ import { performCreateAccountTask } from "./worker.js";
 import { CREATE_ACCOUNT_QUEUE } from "./util.js";
 
 const IN_MEMORY_DB = new Map();
+const connection = new IORedis("redis://cache:6379");
 
 const createAccountQueue = new Queue(CREATE_ACCOUNT_QUEUE, {
-  connection: {
-    host: "127.0.0.1",
-    port: "6379",
-    password: "eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81",
-  },
+  connection,
   defaultJobOptions: {
     attempts: 30,
     backoff: {
@@ -33,11 +31,7 @@ const createAccountWorker = new Worker(
   CREATE_ACCOUNT_QUEUE,
   async (job) => performCreateAccountTask(job),
   {
-    connection: {
-      host: "127.0.0.1",
-      port: "6379",
-      password: "eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81",
-    },
+    connection,
     removeOnComplete: {
       age: 3600, // keep up to 1 hour
       count: 1000, // keep up to 1000 jobs
