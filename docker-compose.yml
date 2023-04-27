@@ -25,7 +25,9 @@ services:
     networks:
       - app-network
   webserver:
-    image: nginx:mainline-alpine
+    # image: nginx:mainline-alpine
+    build:
+      context: ./nginx
     container_name: webserver
     restart: unless-stopped
     ports:
@@ -34,40 +36,40 @@ services:
     volumes:
       - web-root:/var/www/html
       - ./nginx-conf:/etc/nginx/conf.d
-      - certbot-etc:/etc/letsencrypt
-      - certbot-var:/var/lib/letsencrypt
-      - dhparam:/etc/ssl/certs
+      # - certbot-etc:/etc/letsencrypt
+      # - certbot-var:/var/lib/letsencrypt
+      # - dhparam:/etc/ssl/certs
     depends_on:
       - rubinot
     networks:
       - app-network
-  certbot:
-    image: certbot/certbot
-    container_name: certbot
-    volumes:
-      - certbot-etc:/etc/letsencrypt
-      - certbot-var:/var/lib/letsencrypt
-      - web-root:/var/www/html
-    depends_on:
-      - webserver
-    command: certonly --webroot --webroot-path=/var/www/html --email mail@mmartins.dev --agree-tos --no-eff-email --staging -d bot.m1theus.dev  -d www.bot.m1theus.com
+  # certbot:
+  #   image: certbot/certbot
+  #   container_name: certbot
+  #   volumes:
+  #     - certbot-etc:/etc/letsencrypt
+  #     - certbot-var:/var/lib/letsencrypt
+  #     - web-root:/var/www/html
+  #   depends_on:
+  #     - webserver
+  #   command: certonly --webroot --webroot-path=/var/www/html --email mail@mmartins.dev --agree-tos --no-eff-email --staging -d 0.0.0.0:3000
 volumes:
   cache:
     driver: local
-  certbot-etc:
-  certbot-var:
+  # certbot-etc:
+  # certbot-var:
   web-root:
     driver: local
-    driver_opts:
-      type: none
-      device: /home/ubuntu/rubinot-bot/views/
-      o: bind
-  dhparam:
-    driver: local
-    driver_opts:
-      type: none
-      device: /home/ubuntu/rubinot-bot/dhparam/
-      o: bind
+    # driver_opts:
+    # type: none
+    # device: /Users/matheus/workspace/rubinot/views/
+    # o: bind
+  # dhparam:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     device: /Users/matheus/workspace/rubinot/dhparam/
+  #     o: bind
 networks:
   app-network:
     driver: bridge
