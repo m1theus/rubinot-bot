@@ -8,24 +8,18 @@ const server = Fastify({
 });
 
 server.get("/create_account", async (request, reply) => {
-  const {
-    account_pattern,
-    email: email_pattern,
-    password,
-    character_pattern,
-    quantity,
-  } = request.query;
+  const { account, email, password, character_pattern } = request.query;
 
   const error = {
     message: "missing data information",
     fields: [],
   };
 
-  if (!account_pattern) {
-    error.fields.push("account_pattern");
+  if (!account) {
+    error.fields.push("account");
   }
 
-  if (!email_pattern) {
+  if (!email) {
     error.fields.push("email");
   }
 
@@ -37,25 +31,16 @@ server.get("/create_account", async (request, reply) => {
     error.fields.push("character_pattern");
   }
 
-  if (!quantity) {
-    error.fields.push("quantity");
-  }
-
-  if (quantity > 10) {
-    error.fields.push("quantity length too large, pattern: [1-10]");
-  }
-
   if (error?.fields?.length) {
     reply.status(400);
     return error;
   }
 
   return createAccountAsync({
-    account_pattern,
-    email_pattern,
+    account,
+    email,
     password,
     character_pattern,
-    quantity,
   });
 });
 

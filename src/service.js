@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { Queue, Worker } from "bullmq";
-import numberToWords from "number-to-words";
 
 import { performCreateAccountTask } from "./worker.js";
 import { CREATE_ACCOUNT_QUEUE } from "./util.js";
@@ -17,15 +16,15 @@ const createAccountQueue = new Queue(CREATE_ACCOUNT_QUEUE, {
     attempts: 30,
     backoff: {
       type: "fixed",
-      delay: 3 * 1000,
+      delay: 300,
     },
-    delay: 3 * 1000,
+    delay: 300,
     removeOnComplete: {
       age: 3600, // keep up to 1 hour
       count: 1000, // keep up to 1000 jobs
     },
     removeOnFail: {
-      age: 10 * 1000, // keep up to 24 hours
+      age: 1800,
     },
   },
 });
@@ -44,7 +43,7 @@ const createAccountWorker = new Worker(
       count: 1000, // keep up to 1000 jobs
     },
     removeOnFail: {
-      age: 10 * 1000, // keep up to 24 hours
+      age: 1800, // keep up to 24 hours
     },
     concurrency: 50,
     runRetryDelay: 200,
@@ -53,79 +52,58 @@ const createAccountWorker = new Worker(
 );
 
 createAccountWorker.on("completed", (job, successData) => {
-  console.log("creating account completed...jobId:", job.name);
-  const task = IN_MEMORY_DB.get(job.name);
+  try {
+    console.log("creating account completed...jobId:", job.name);
+    const task = IN_MEMORY_DB.get(job.name);
 
-  const index = task?.jobs?.indexOf(successData.id);
-  if (index > -1) {
-    task?.jobs?.splice(index, 1);
-  }
-
-  task.data?.push(successData);
-
-  if (task.jobs.length === 0) {
+    task.data?.push(successData);
     task.status = "COMPLETED";
-  }
 
-  IN_MEMORY_DB.delete(job.id);
-  IN_MEMORY_DB.set(job.id, task);
+    IN_MEMORY_DB.delete(job.id);
+    IN_MEMORY_DB.set(job.id, task);
+  } catch (e) {
+    console.log("job completed but failed to update");
+  }
 });
 
 async function createAccountAsync({
-  account_pattern,
-  email_pattern,
+  account,
+  email,
   password,
   character_pattern,
-  quantity,
 }) {
   const taskId = randomUUID();
 
-  const data = new Array(parseInt(quantity) || 1)
-    .fill(account_pattern)
-    .map((accountName, index) => {
-      const account = `${accountName}${index + 1}`;
-      const character = `${character_pattern}${numberToWords.toWords(
-        index + 1
-      )}`
-        .split("-")
-        .join(" ")
-        .replace(" ", "")
-        .trim();
+  const [em1, em2] = email.split("@");
+  const accountEmail = `${em1}+${account}@${em2}`.trim();
 
-      const [em1, em2] = email_pattern.split("@");
-      const email = `${em1}+${account}@${em2}`.trim();
+  const data = {
+    taskId,
+    account,
+    password,
+    character_pattern,
+    name: taskId,
+    email: accountEmail,
+  };
 
-      return {
-        name: taskId,
-        data: {
-          account,
-          email,
-          password,
-          character,
-          password,
-        },
-      };
-    });
-
-  const jobs = await createAccountQueue.addBulk(data, {
+  const { id: jobId } = await createAccountQueue.add(taskId, data, {
     removeOnComplete: {
       age: 3600, // keep up to 1 hour
       count: 1000, // keep up to 1000 jobs
     },
     removeOnFail: {
-      age: 24 * 3600, // keep up to 24 hours
+      age: 1800,
     },
-    concurrency: 50,
     attempts: 5,
     backoff: {
       type: "fixed",
-      delay: 200,
+      delay: 300,
     },
   });
 
   const tasksData = {
     taskId,
-    jobs: jobs?.map((x) => x.id),
+    jobId,
     data: [],
     status: "ACTIVE",
   };
@@ -135,9 +113,9 @@ async function createAccountAsync({
   return tasksData;
 }
 
-function getTask(taskId) {
-  const data = IN_MEMORY_DB.get(taskId);
-  return data || { data: [] };
+async function getTask(taskId) {
+  const task = IN_MEMORY_DB.get(taskId);
+  return task || { data: [] };
 }
 
 export { createAccountAsync, getTask };

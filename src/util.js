@@ -7,7 +7,7 @@ import { CookieJar } from "tough-cookie";
 import { createWorker } from "tesseract.js";
 
 const worker = await createWorker({
-  // logger: m => console.log(m)
+  langPath: "https://tessdata.projectnaptha.com/4.0.0",
 });
 
 const jar = new CookieJar();
@@ -63,14 +63,69 @@ const recoveryKey = async (password) =>
   );
 
 const login = async ({ account_login, password_login }) =>
-  axios.post(
+  client.post(
     "https://rubinot.com/?account/manage",
     new URLSearchParams({
       account_login,
       password_login,
       authenticator: "",
       page: "overview",
-    })
+    }),
+    {
+      headers: {
+        authority: "rubinot.com",
+        accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "accept-language": "en-US,en;q=0.9",
+        "cache-control": "max-age=0",
+        origin: "https://rubinot.com",
+        referer: "https://rubinot.com/?account/manage",
+        "sec-ch-ua":
+          '"Chromium";v="112", "Google Chrome";v="112", "Not:A-Brand";v="99"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"macOS"',
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "same-origin",
+        "sec-fetch-user": "?1",
+        "upgrade-insecure-requests": "1",
+        "user-agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
+      },
+    }
+  );
+
+const createCharacter = async ({ name }) =>
+  client.post(
+    "https://rubinot.com/?account/character/create",
+    new URLSearchParams({
+      name,
+      save: "1",
+      sex: "1",
+      world: "0",
+    }),
+    {
+      headers: {
+        authority: "rubinot.com",
+        accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "accept-language": "en-US,en;q=0.9",
+        "cache-control": "max-age=0",
+        origin: "https://rubinot.com",
+        referer: "https://rubinot.com/?account/manage",
+        "sec-ch-ua":
+          '"Chromium";v="112", "Google Chrome";v="112", "Not:A-Brand";v="99"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"macOS"',
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "same-origin",
+        "sec-fetch-user": "?1",
+        "upgrade-insecure-requests": "1",
+        "user-agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
+      },
+    }
   );
 
 const handleCreateAccountBody = (body) => {
@@ -91,6 +146,32 @@ const handleCreateAccountBody = (body) => {
   }
 };
 
+const handleRecoveryKeyBody = (body) => {
+  if (body?.includes("Generate recovery key")) {
+    return {
+      error: true,
+      message: "Error creating account...",
+      errData: body,
+    };
+  }
+
+  if (body?.includes("The Following Errors Have Occurred")) {
+    return {
+      error: true,
+      message: "Error creating account...",
+      errData: body,
+    };
+  }
+
+  if (body?.includes("Character Created")) {
+    return {
+      error: true,
+      message: "Error creating account...",
+      errData: body,
+    };
+  }
+};
+
 const retrieveRegCode = async (path) => {
   await worker.loadLanguage("eng");
   await worker.initialize("eng");
@@ -102,9 +183,7 @@ const retrieveRegCode = async (path) => {
     const {
       jobId,
       data: { text },
-    } = await worker.recognize(path, {
-      rectangle: { top: 0, left: 0, width: 80, height: 30 },
-    });
+    } = await worker.recognize(path);
 
     const reg_code = text.trim().replace("\n", "");
 
@@ -124,4 +203,6 @@ export {
   recoveryKey,
   handleCreateAccountBody,
   CREATE_ACCOUNT_QUEUE,
+  createCharacter,
+  login,
 };
