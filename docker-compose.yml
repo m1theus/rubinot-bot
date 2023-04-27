@@ -15,8 +15,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: rubinot
-    container_name: rubinot
     ports:
       - "81:5000"
     depends_on:
@@ -28,8 +26,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: rubinot
-    container_name: rubinot
     ports:
       - "82:5000"
     depends_on:
