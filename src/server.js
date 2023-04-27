@@ -3,8 +3,14 @@ import { createAccountAsync, getTask } from "./service.js";
 
 const server = express();
 
-server.get("/create_account", async (request, reply) => {
+server.get("/", function (req, res) {
+  res.send("hello world!");
+});
+
+server.get("/create_account", async (request, response) => {
   const { account, email, password, character_pattern } = request.query;
+
+  console.log("handling request...");
 
   const error = {
     message: "missing data information",
@@ -29,15 +35,18 @@ server.get("/create_account", async (request, reply) => {
 
   if (error?.fields?.length) {
     reply.status(400);
-    return error;
+    return response.status(400).json(error);
   }
 
-  return createAccountAsync({
+  const res = await createAccountAsync({
     account,
     email,
     password,
     character_pattern,
   });
+
+  console.log({ res });
+  return response.status(200).json(res);
 });
 
 server.get("/get_account/:id", async (request, response) => {
