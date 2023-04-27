@@ -6,7 +6,9 @@ import { performCreateAccountTask } from "./worker.js";
 import { CREATE_ACCOUNT_QUEUE } from "./util.js";
 
 const IN_MEMORY_DB = new Map();
-const connection = new IORedis("redis://cache:6379");
+const connection = new IORedis(
+  "redis://clustercfg.rubinot.3zmfvy.apse2.cache.amazonaws.com:6379"
+);
 
 const createAccountQueue = new Queue(CREATE_ACCOUNT_QUEUE, {
   connection,
