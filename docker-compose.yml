@@ -16,6 +16,14 @@ services:
       - "443:443"
     depends_on:
       - rubinot
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
 # version: "3.9"
 # services:
 #   cache:
