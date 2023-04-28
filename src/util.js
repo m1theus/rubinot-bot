@@ -1,5 +1,3 @@
-import fs from "node:fs";
-
 import axios from "axios";
 
 import { wrapper } from "axios-cookiejar-support";
@@ -17,22 +15,28 @@ async function generateSession() {
   return client.get("https://rubinot.com/?account/create");
 }
 
-async function downloadImage(path) {
-  const writer = fs.createWriteStream(path);
-
-  const response = await client.get(
+async function downloadImage() {
+  const { data } = await client.get(
     "https://rubinot.com/?subtopic=imagebuilder&image_refresher=%27.rand(1,99999).%27",
     {
-      responseType: "stream",
+      responseType: "arraybuffer",
     }
   );
 
-  response.data.pipe(writer);
+  const finalImageBuffer = await processImage(data);
 
-  return new Promise((resolve, reject) => {
-    writer.on("finish", resolve);
-    writer.on("error", reject);
-  });
+  return finalImageBuffer;
+}
+
+async function processImage(imgBuffer) {
+  const finalImageBuffer = await sharp(imgBuffer)
+    .flatten({ background: { r: 255, g: 255, b: 255 } })
+    .threshold(200)
+    .resize(240)
+    .png({ palette: true, effort: 1, compressionLevel: 0 })
+    .toBuffer();
+
+  return finalImageBuffer;
 }
 
 const createAccount = async ({ reg_code, account, email, password, name }) =>
