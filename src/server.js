@@ -1,5 +1,6 @@
 import express from "express";
 import { createAccountAsync, getTask } from "./service.js";
+import { verifyAccount } from "./util.js";
 
 const server = express();
 
@@ -37,6 +38,14 @@ server.get("/create_account", async (request, response) => {
 
   if (!character_pattern) {
     error.fields.push("character_pattern");
+  }
+
+  const verifyAccountResponse = await verifyAccount(account);
+  if (verifyAccountResponse.error) {
+    error.fields.push({
+      field: "account",
+      error: verifyAccountResponse.msg,
+    });
   }
 
   if (error?.fields?.length) {

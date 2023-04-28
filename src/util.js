@@ -128,6 +128,23 @@ const createCharacter = async ({ name }) =>
     }
   );
 
+const verifyAccount = async (account) =>
+  client
+    .get(`https://rubinot.com/tools/validate.php?account=${account}`)
+    .then((response) => {
+      if (response?.data.hasOwnProperty("error")) {
+        return {
+          error: true,
+          msg: response?.data?.error,
+        };
+      }
+
+      return {
+        error: false,
+      };
+    })
+    .catch((err) => ({ error: true, err }));
+
 const handleCreateAccountBody = (body) => {
   if (body?.includes("The Following Errors Have Occurred")) {
     console.log("Error creating account...");
@@ -205,4 +222,5 @@ export {
   CREATE_ACCOUNT_QUEUE,
   createCharacter,
   login,
+  verifyAccount,
 };
