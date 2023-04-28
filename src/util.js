@@ -1,4 +1,5 @@
 import axios from "axios";
+import sharp from "sharp";
 
 import { wrapper } from "axios-cookiejar-support";
 import { CookieJar } from "tough-cookie";
@@ -29,14 +30,12 @@ async function downloadImage() {
 }
 
 async function processImage(imgBuffer) {
-  const finalImageBuffer = await sharp(imgBuffer)
+  return sharp(imgBuffer)
     .flatten({ background: { r: 255, g: 255, b: 255 } })
     .threshold(200)
     .resize(240)
     .png({ palette: true, effort: 1, compressionLevel: 0 })
     .toBuffer();
-
-  return finalImageBuffer;
 }
 
 const createAccount = async ({ reg_code, account, email, password, name }) =>

@@ -41,7 +41,6 @@ const createAccountWorker = new Worker(
     },
     concurrency: 50,
     runRetryDelay: 200,
-    maxStalledCount: 5,
   }
 );
 
@@ -88,7 +87,7 @@ async function createAccountAsync({
     removeOnFail: {
       age: 1800,
     },
-    attempts: 5,
+    attempts: 30,
     backoff: {
       type: "fixed",
       delay: 300,
