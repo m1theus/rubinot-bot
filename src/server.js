@@ -75,7 +75,10 @@ server.get("/create_account", async (request, response) => {
   });
 
   console.log(`[${taskId}] controller:response`, res);
-  return response.status(200).json(res);
+  return response.status(200).json({
+    get_account_url: `/get_account/${res.taskId}`,
+    ...res,
+  });
 });
 
 server.get("/get_account/:id", async (request, response) => {
