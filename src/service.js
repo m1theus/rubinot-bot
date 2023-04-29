@@ -1,72 +1,11 @@
-import IORedis from "ioredis";
-import { randomUUID } from "node:crypto";
-import { Queue, Worker } from "bullmq";
-
-import { performCreateAccountTask } from "./worker.js";
-import { CREATE_ACCOUNT_QUEUE } from "./util.js";
+import { Worker } from "node:worker_threads";
 
 const IN_MEMORY_DB = new Map();
-const connection = new IORedis("redis://cache:6379");
 
-const createAccountQueue = new Queue(CREATE_ACCOUNT_QUEUE, {
-  connection,
-  defaultJobOptions: {
-    attempts: 30,
-    backoff: {
-      type: "fixed",
-      delay: 300,
-    },
-    delay: 300,
-    removeOnComplete: {
-      age: 3600, // keep up to 1 hour
-      count: 1000, // keep up to 1000 jobs
-    },
-    removeOnFail: {
-      age: 1800,
-    },
-  },
-});
-
-const createAccountWorker = new Worker(
-  CREATE_ACCOUNT_QUEUE,
-  async (job) => performCreateAccountTask(job),
-  {
-    connection,
-    removeOnComplete: {
-      age: 3600, // keep up to 1 hour
-      count: 1000, // keep up to 1000 jobs
-    },
-    removeOnFail: {
-      age: 1800, // keep up to 24 hours
-    },
-    concurrency: 50,
-    runRetryDelay: 200,
-  }
-);
-
-createAccountWorker.on("completed", (job, successData) => {
-  try {
-    console.log("creating account completed...jobId:", job.name);
-    const task = IN_MEMORY_DB.get(job.name);
-
-    task.data?.push(successData);
-    task.status = "COMPLETED";
-
-    IN_MEMORY_DB.delete(job.id);
-    IN_MEMORY_DB.set(job.id, task);
-  } catch (e) {
-    console.log("job completed but failed to update");
-  }
-});
-
-async function createAccountAsync({
-  account,
-  email,
-  password,
-  character_pattern,
-}) {
-  const taskId = randomUUID();
-
+async function createAccountAsync(
+  taskId,
+  { account, email, password, character_pattern }
+) {
   const [em1, em2] = email.split("@");
   const accountEmail = `${em1}+${account}@${em2}`.trim();
 
@@ -74,29 +13,23 @@ async function createAccountAsync({
     taskId,
     account,
     password,
-    character_pattern,
-    name: taskId,
+    name: character_pattern,
     email: accountEmail,
   };
 
-  const { id: jobId } = await createAccountQueue.add(taskId, data, {
-    removeOnComplete: {
-      age: 3600, // keep up to 1 hour
-      count: 1000, // keep up to 1000 jobs
-    },
-    removeOnFail: {
-      age: 1800,
-    },
-    attempts: 30,
-    backoff: {
-      type: "fixed",
-      delay: 300,
-    },
-  });
+  async function runCreateAccountWorker(data) {
+    const createdAccount = await runWorker(data);
+    IN_MEMORY_DB.set(createdAccount.taskId, {
+      taskId: createdAccount.taskId,
+      data: createdAccount,
+      status: "COMPLETED",
+    });
+  }
+
+  runCreateAccountWorker(data);
 
   const tasksData = {
     taskId,
-    jobId,
     data: [],
     status: "ACTIVE",
   };
@@ -109,6 +42,19 @@ async function createAccountAsync({
 async function getTask(taskId) {
   const task = IN_MEMORY_DB.get(taskId);
   return task || { data: [] };
+}
+
+async function runWorker(workerData) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker("./src/worker.js", { workerData });
+
+    worker.on("message", resolve);
+    worker.on("error", reject);
+    worker.on("exit", (code) => {
+      if (code !== 0)
+        reject(new Error(`Worker stopped with exit code ${code}`));
+    });
+  });
 }
 
 export { createAccountAsync, getTask };

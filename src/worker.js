@@ -1,83 +1,108 @@
-import {
-  generateSession,
-  retrieveRegCode,
-  downloadImage,
-  createAccount,
-  handleCreateAccountBody,
-  login,
-  createCharacter,
-} from "./util.js";
+import { workerData, parentPort } from "node:worker_threads";
 
-async function performCreateAccountTask({
-  id,
-  data: { account, email, password, character_pattern },
-}) {
-  console.log("processing account:", account);
-  await generateSession();
-  const imageBuffer = await downloadImage();
-  const reg_code = await retrieveRegCode(imageBuffer);
-  console.log(`[${account}] - reg_code: ${reg_code}`);
-  const { data } = await createAccount({
-    reg_code,
-    account,
-    email,
-    password,
-    password2: password,
-    name: `${character_pattern}um`,
+import pRetry from "p-retry";
+
+import { login } from "./http/login.js";
+import { generateSession } from "./http/session.js";
+import { downloadImage } from "./http/challenge_code.js";
+import { createAccount } from "./http/create_account.js";
+import { createCharacter } from "./http/create_character.js";
+import { retrieveChallengeCode } from "./util/tesseract.js";
+
+function performTask(workerData) {
+  return new Promise(async (resolve) => {
+    const { taskId } = workerData;
+    await generateSession();
+
+    async function createAccountSync({ account, email, password, name }) {
+      const imgBuffer = await downloadImage();
+      const reg_code = await retrieveChallengeCode(imgBuffer);
+
+      const { error, message } = await createAccount({
+        reg_code,
+        account,
+        email,
+        password,
+        name,
+      });
+
+      if (error) {
+        throw new Error(`${reg_code}::${message}`);
+      }
+
+      return {
+        error,
+        message: `${reg_code}::${message}`,
+      };
+    }
+
+    const { error, message } = await pRetry(
+      () => createAccountSync(workerData),
+      {
+        onFailedAttempt: (error) => {
+          console.log(
+            `[${taskId}] worker:retry => ${error.message} | attempt ${error.attemptNumber} failed. There are ${error.retriesLeft} retries left.`
+          );
+        },
+        retries: 30,
+        factor: 0,
+        minTimeout: 500,
+        maxTimeout: 1000,
+      }
+    );
+
+    console.log(`[${taskId}] worker:create_account`, { error, message });
+
+    if (!error) {
+      let { error, message } = await login({
+        account_login: workerData.account,
+        password_login: workerData.password,
+      });
+
+      console.log(`[${taskId}] worker:login`, { error, message });
+
+      const numerosPorExtenso = new Map([
+        [2, "dois"],
+        [3, "tres"],
+        [4, "quatro"],
+        [5, "cinco"],
+        [6, "seis"],
+        [7, "sete"],
+        [8, "oito"],
+        [9, "nove"],
+        [10, "dez"],
+      ]);
+
+      const createCharPromise = Array.from(numerosPorExtenso.values()).map(
+        (n) => {
+          const name = `${workerData.name}${n}`;
+          return createCharacter({ name });
+        }
+      );
+
+      const promiseResolve = await Promise.all(createCharPromise);
+
+      promiseResolve.forEach((res) => {
+        if (!res.hasOwnProperty("data")) {
+          const { error, message } = res;
+          console.log(`[${taskId}] worker:create_character`, {
+            error,
+            message,
+          });
+        }
+      });
+
+      resolve(workerData);
+    }
   });
-  const { error, errData } = handleCreateAccountBody(data);
-
-  if (!error) {
-    const characters = await performCreateCharacterTask({
-      account,
-      password,
-      character_pattern,
-    });
-
-    return {
-      id,
-      account,
-      email,
-      password,
-      characters,
-      status: "COMPLETED",
-    };
-  } else {
-    throw new Error();
-  }
 }
 
-async function performCreateCharacterTask({
-  account,
-  password,
-  character_pattern,
-}) {
-  const { data: loginBody } = await login({
-    account_login: account,
-    password_login: password,
-  });
-
-  const numerosPorExtenso = new Map([
-    [2, "dois"],
-    [3, "tres"],
-    [4, "quatro"],
-    [5, "cinco"],
-    [6, "seis"],
-    [7, "sete"],
-    [8, "oito"],
-    [9, "nove"],
-    [10, "dez"],
-  ]);
-
-  const charResult = [];
-  for (let index = 1; index < 10; index++) {
-    const name = `${character_pattern}${numerosPorExtenso.get(index + 1)}`;
-    const { data } = await createCharacter({ name });
-    console.log(`creating char: `, name);
-    charResult.push(name);
-  }
-
-  return charResult;
+async function run() {
+  const { taskId } = workerData;
+  console.log(`[${taskId}] worker:performing_task`);
+  const result = await performTask(workerData);
+  parentPort.postMessage(result);
+  console.log(`[${taskId}] worker:task_finished`);
 }
 
-export { performCreateAccountTask, performCreateCharacterTask };
+run();
