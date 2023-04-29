@@ -1,12 +1,10 @@
 version: "3.9"
 services:
-  cache:
-    image: "redis:alpine"
-    ports:
-      - "6379:6379"
   rubinot:
     restart: on-failure
     build: .
+    environment:
+      - SERVER_PORT=5000
     ports:
       - "81:5000"
   nginx:
