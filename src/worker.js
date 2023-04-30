@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomInt } from "node:crypto";
 import { workerData, parentPort } from "node:worker_threads";
 
 import pRetry from "p-retry";
@@ -65,7 +65,13 @@ function performTask(workerData) {
       const createCharPromise = Array(9)
         .fill(workerData.name)
         .map((currentCharName) => {
-          const postfix = randomBytes(3).toString("hex").replace(/\d+/g, "");
+          const pull = "abcdefghijklmnopqrstuvwxyz";
+
+          let postfix = ``;
+          postfix += pull.charAt(randomInt(pull.length) - 1);
+          postfix += pull.charAt(randomInt(pull.length) - 1);
+          postfix += pull.charAt(randomInt(pull.length) - 1);
+
           const name = `${currentCharName}${postfix}`;
           return createCharacter({ name });
         });
