@@ -65,7 +65,7 @@ function performTask(workerData) {
       const createCharPromise = Array(9)
         .fill(workerData.name)
         .map((currentCharName) => {
-          const postfix = randomBytes(4).toString("hex").replace(/\d+/g, "");
+          const postfix = randomBytes(2).toString("hex").replace(/\d+/g, "");
           const name = `${currentCharName}${postfix}`;
           return createCharacter({ name });
         });
