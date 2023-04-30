@@ -18,12 +18,20 @@ async function createAccountAsync(
   };
 
   async function runCreateAccountWorker(data) {
-    const createdAccount = await runWorker(data);
-    IN_MEMORY_DB.set(createdAccount.taskId, {
-      taskId: createdAccount.taskId,
-      data: createdAccount,
-      status: "COMPLETED",
-    });
+    try {
+      const createdAccount = await runWorker(data);
+      IN_MEMORY_DB.set(createdAccount.taskId, {
+        taskId: createdAccount.taskId,
+        data: createdAccount,
+        status: "COMPLETED",
+      });
+    } catch (error) {
+      IN_MEMORY_DB.set(data.taskId, {
+        taskId: data.taskId,
+        data: data,
+        status: "FAILED",
+      });
+    }
   }
 
   runCreateAccountWorker(data);
