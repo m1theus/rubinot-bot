@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { workerData, parentPort } from "node:worker_threads";
 
 import pRetry from "p-retry";
@@ -61,24 +62,13 @@ function performTask(workerData) {
 
       console.log(`[${taskId}] worker:login`, { error, message });
 
-      const numerosPorExtenso = new Map([
-        [2, "dois"],
-        [3, "tres"],
-        [4, "quatro"],
-        [5, "cinco"],
-        [6, "seis"],
-        [7, "sete"],
-        [8, "oito"],
-        [9, "nove"],
-        [10, "dez"],
-      ]);
-
-      const createCharPromise = Array.from(numerosPorExtenso.values()).map(
-        (n) => {
-          const name = `${workerData.name}${n}`;
+      const createCharPromise = Array(9)
+        .fill(workerData.name)
+        .map((currentCharName) => {
+          const postfix = randomBytes(6).toString("hex").replace(/\d+/g, "");
+          const name = `${currentCharName}${postfix}`;
           return createCharacter({ name });
-        }
-      );
+        });
 
       const promiseResolve = await Promise.all(createCharPromise);
 
