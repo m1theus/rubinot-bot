@@ -8,6 +8,10 @@ import { generateSession } from "./http/session.js";
 import { downloadImage } from "./http/challenge_code.js";
 import { createAccount } from "./http/create_account.js";
 import { createCharacter } from "./http/create_character.js";
+import {
+  createRecaptchaTask,
+  retrieveRecaptchaResult,
+} from "./http/recaptcha.js";
 import { retrieveChallengeCode } from "./util/tesseract.js";
 
 function performTask(workerData) {
@@ -18,6 +22,18 @@ function performTask(workerData) {
     async function createAccountSync({ account, email, password, name }) {
       const imgBuffer = await downloadImage();
       const reg_code = await retrieveChallengeCode(imgBuffer);
+      const recaptchaTask = await createRecaptchaTask();
+
+      let recaptcha = "";
+      let isSolveReady = "";
+      while (recaptcha === "" && isSolveReady !== "ready") {
+        const recaptchaCode = await retrieveRecaptchaResult(
+          recaptchaTask?.taskId
+        );
+
+        isSolveReady = recaptchaCode?.status;
+        recaptcha = recaptchaCode?.solution?.gRecaptchaResponse || "";
+      }
 
       const { error, message } = await createAccount({
         reg_code,
@@ -25,6 +41,7 @@ function performTask(workerData) {
         email,
         password,
         name,
+        recaptcha,
       });
 
       if (error) {

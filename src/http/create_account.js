@@ -1,6 +1,13 @@
 import axios from "./client.js";
 
-const createAccount = async ({ reg_code, account, email, password, name }) =>
+const createAccount = async ({
+  reg_code,
+  account,
+  email,
+  password,
+  name,
+  recaptcha,
+}) =>
   axios.post(
     "https://rubinot.com/?account/create",
     new URLSearchParams({
@@ -15,6 +22,7 @@ const createAccount = async ({ reg_code, account, email, password, name }) =>
       world: "0",
       accept_rules: "true",
       save: "1",
+      "g-recaptcha-response": recaptcha,
     })
   );
 
